@@ -1,73 +1,31 @@
 
-  # Sudoku - Documentação Técnica
+  # Sudoku - Instruções do Jogo
 
-  Bundle frontend baseado no layout original do Figma:
-  https://www.figma.com/design/kE7vOyOST3EQ5My1jybMEO/center-square-and-header
+  ## Objetivo
 
-  ## Visão Geral
+  Preencher todas as casas vazias com números de 1 a 9 sem repetir:
+  - na mesma linha
+  - na mesma coluna
+  - no mesmo bloco 3x3
 
-  Aplicação web React com Vite, organizada para desenvolvimento rápido de interface.
+  ## Como Jogar
 
-  Tecnologias principais:
-  - React 18
-  - Vite 6
-  - TypeScript
-  - Componentes de UI baseados em Radix e utilitários de estilo
+  1. Clique numa célula vazia da grelha.
+  2. Escolha um número no teclado numérico da interface (1 a 9) ou use o teclado.
+  3. Para limpar uma célula, use 0, Delete ou Backspace.
+  4. Continue até preencher a grelha inteira corretamente.
 
-  ## Pré-requisitos
+  ## O Que Cada Botão Faz
 
-  Antes de iniciar, garanta que o ambiente possui:
-  - Node.js 18+
-  - npm 9+
+  - New Puzzle: cria uma nova grelha aleatória.
+  - Check: verifica a grelha atual e marca valores incorretos.
+  - Solve: resolve automaticamente o puzzle atual.
+  - Notes: ativa/desativa o modo de anotações para colocar candidatos nas células.
+  - Reset: repõe a grelha para o estado inicial do puzzle atual.
 
-  Verificação opcional:
+  ## Dicas Rápidas
 
-  ```bash
-  node -v
-  npm -v
-  ```
-
-  ## Instalação
-
-  Instale as dependências do projeto:
-
-  ```bash
-  npm install
-  ```
-
-  ## Execução em Desenvolvimento
-
-  Inicie o servidor local:
-
-  ```bash
-  npm run dev
-  ```
-
-  A aplicação ficará disponível em:
-  - http://localhost:5173/
-
-  ## Build de Produção
-
-  Gere os artefatos otimizados:
-
-  ```bash
-  npm run build
-  ```
-
-  ## Scripts Disponíveis
-
-  - `npm run dev`: inicia o servidor de desenvolvimento (Vite)
-  - `npm run build`: gera build de produção
-
-  ## Estrutura Relevante
-
-  - `src/main.tsx`: ponto de entrada da aplicação
-  - `src/app/App.tsx`: composição principal da interface
-  - `src/app/components/ui/`: biblioteca de componentes reutilizáveis
-  - `src/styles/`: estilos globais, tema e fontes
-
-  ## Observações Técnicas
-
-  - O projeto utiliza Vite com módulo ES (`"type": "module"`).
-  - Caso o servidor não suba, reinstale dependências com `npm install`.
+  - Use o modo Notes para testar possibilidades antes de preencher definitivamente.
+  - Complete primeiro linhas, colunas ou blocos com menos casas vazias.
+  - Use Check quando quiser validar o progresso.
   
