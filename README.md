@@ -1,8 +1,7 @@
 
   # Sudoku - Documentação Técnica
 
-  Bundle frontend baseado no layout original do Figma:
-  https://www.figma.com/design/kE7vOyOST3EQ5My1jybMEO/center-square-and-header
+  Bundle frontend baseado no layout original do Figma
 
   ## Visão Geral
 
