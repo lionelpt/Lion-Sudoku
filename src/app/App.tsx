@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 
 // Sudoku puzzle generator helper
 const generatePuzzle = (): { puzzle: number[][], solution: number[][] } => {
-  // A sample puzzle (difficulty: medium)
-  const puzzle = [
+  // Base puzzle (difficulty: medium)
+  const basePuzzle = [
     [5, 3, 0, 0, 7, 0, 0, 0, 0],
     [6, 0, 0, 1, 9, 5, 0, 0, 0],
     [0, 9, 8, 0, 0, 0, 0, 6, 0],
@@ -15,7 +15,7 @@ const generatePuzzle = (): { puzzle: number[][], solution: number[][] } => {
     [0, 0, 0, 0, 8, 0, 0, 7, 9]
   ];
 
-  const solution = [
+  const baseSolution = [
     [5, 3, 4, 6, 7, 8, 9, 1, 2],
     [6, 7, 2, 1, 9, 5, 3, 4, 8],
     [1, 9, 8, 3, 4, 2, 5, 6, 7],
@@ -26,6 +26,99 @@ const generatePuzzle = (): { puzzle: number[][], solution: number[][] } => {
     [2, 8, 7, 4, 1, 9, 6, 3, 5],
     [3, 4, 5, 2, 8, 6, 1, 7, 9]
   ];
+
+  const cloneBoard = (board: number[][]): number[][] => board.map(row => [...row]);
+
+  const randomInt = (max: number): number => Math.floor(Math.random() * max);
+
+  const shuffle = <T,>(arr: T[]): T[] => {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1);
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const transpose = (board: number[][]): number[][] =>
+    board[0].map((_, col) => board.map(row => row[col]));
+
+  const swapRows = (board: number[][], rowA: number, rowB: number) => {
+    [board[rowA], board[rowB]] = [board[rowB], board[rowA]];
+  };
+
+  const swapCols = (board: number[][], colA: number, colB: number) => {
+    for (let row = 0; row < 9; row++) {
+      [board[row][colA], board[row][colB]] = [board[row][colB], board[row][colA]];
+    }
+  };
+
+  const swapRowBands = (board: number[][], bandA: number, bandB: number) => {
+    for (let offset = 0; offset < 3; offset++) {
+      swapRows(board, bandA * 3 + offset, bandB * 3 + offset);
+    }
+  };
+
+  const swapColStacks = (board: number[][], stackA: number, stackB: number) => {
+    for (let offset = 0; offset < 3; offset++) {
+      swapCols(board, stackA * 3 + offset, stackB * 3 + offset);
+    }
+  };
+
+  const remapDigits = (board: number[][], mapping: number[]): number[][] =>
+    board.map(row => row.map(value => (value === 0 ? 0 : mapping[value])));
+
+  let puzzle = cloneBoard(basePuzzle);
+  let solution = cloneBoard(baseSolution);
+
+  // Random digit permutation preserves Sudoku correctness.
+  const shuffledDigits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  const digitMap = Array(10).fill(0);
+  for (let i = 1; i <= 9; i++) {
+    digitMap[i] = shuffledDigits[i - 1];
+  }
+  puzzle = remapDigits(puzzle, digitMap);
+  solution = remapDigits(solution, digitMap);
+
+  // Randomize row/column structures while keeping a valid board.
+  const applyBoardTransforms = (board: number[][]) => {
+    const bandA = randomInt(3);
+    let bandB = randomInt(3);
+    while (bandB === bandA) bandB = randomInt(3);
+    swapRowBands(board, bandA, bandB);
+
+    const stackA = randomInt(3);
+    let stackB = randomInt(3);
+    while (stackB === stackA) stackB = randomInt(3);
+    swapColStacks(board, stackA, stackB);
+
+    for (let band = 0; band < 3; band++) {
+      const rows = shuffle([0, 1, 2]);
+      const [r0, r1, r2] = rows;
+      const original = board.slice(band * 3, band * 3 + 3);
+      board[band * 3] = [...original[r0]];
+      board[band * 3 + 1] = [...original[r1]];
+      board[band * 3 + 2] = [...original[r2]];
+    }
+
+    for (let stack = 0; stack < 3; stack++) {
+      const cols = shuffle([0, 1, 2]);
+      for (let row = 0; row < 9; row++) {
+        const original = board[row].slice(stack * 3, stack * 3 + 3);
+        board[row][stack * 3] = original[cols[0]];
+        board[row][stack * 3 + 1] = original[cols[1]];
+        board[row][stack * 3 + 2] = original[cols[2]];
+      }
+    }
+  };
+
+  applyBoardTransforms(puzzle);
+  applyBoardTransforms(solution);
+
+  if (Math.random() > 0.5) {
+    puzzle = transpose(puzzle);
+    solution = transpose(solution);
+  }
 
   return { puzzle, solution };
 };
