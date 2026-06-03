@@ -187,4 +187,40 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
+
+  /* Board wrapper border removed per user request */
+  .board-wrapper {
+    position: static;
+    background-clip: initial;
+  }
+
+  /* Responsive board sizing */
+  .board-wrapper {
+    width: min(92vw, 640px);
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .board-wrapper .grid > button {
+    width: calc(100% / 9) !important;
+    min-width: 28px;
+  }
+
+  /* Remove external strokes on outermost cells to avoid visible outer border */
+  .board-wrapper .grid > button:nth-child(-n+9) {
+    border-top: none !important;
+  }
+
+  .board-wrapper .grid > button:nth-child(9n+1) {
+    border-left: none !important;
+  }
+
+  .board-wrapper .grid > button:nth-child(9n) {
+    border-right: none !important;
+  }
+
+  .board-wrapper .grid > button:nth-last-child(-n+9) {
+    border-bottom: none !important;
+  }
 }
