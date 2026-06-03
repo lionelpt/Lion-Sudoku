@@ -188,39 +188,38 @@
     line-height: 1.5;
   }
 
-  /* Board wrapper border removed per user request */
+  /* Board: square wrapper + 9x9 grid with equal rows */
   .board-wrapper {
-    position: static;
-    background-clip: initial;
-  }
-
-  /* Responsive board sizing */
-  .board-wrapper {
-    width: min(92vw, 640px);
+    width: min(86vw, 600px);
     max-width: 100%;
     margin-left: auto;
     margin-right: auto;
+    aspect-ratio: 1 / 1; /* keep the board square */
+    overflow: hidden;
+    background: rgba(255,255,255,0.94);
+    border-radius: 1rem;
+    box-shadow: none;
+    padding: 0.25rem;
+  }
+
+  .board-wrapper .grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    gap: 0;
+    height: 100%;
+    background: transparent;
+    padding: 0;
   }
 
   .board-wrapper .grid > button {
-    width: calc(100% / 9) !important;
-    min-width: 28px;
-  }
-
-  /* Remove external strokes on outermost cells to avoid visible outer border */
-  .board-wrapper .grid > button:nth-child(-n+9) {
-    border-top: none !important;
-  }
-
-  .board-wrapper .grid > button:nth-child(9n+1) {
-    border-left: none !important;
-  }
-
-  .board-wrapper .grid > button:nth-child(9n) {
-    border-right: none !important;
-  }
-
-  .board-wrapper .grid > button:nth-last-child(-n+9) {
-    border-bottom: none !important;
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-clip: padding-box;
   }
 }
