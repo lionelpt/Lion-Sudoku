@@ -230,9 +230,7 @@ export default function App() {
       // Check if puzzle is complete
       const isFilled = newBoard.every(row => row.every(cell => cell !== 0));
       const isCorrect = JSON.stringify(newBoard) === JSON.stringify(solution);
-      if (isFilled && isCorrect) {
-        setIsComplete(true);
-      }
+      setIsComplete(isFilled && isCorrect);
     }
   };
 
@@ -264,6 +262,10 @@ export default function App() {
       }
     }
     setErrors(newErrors);
+
+    const isFilled = board.every(row => row.every(cell => cell !== 0));
+    const isCorrect = newErrors.size === 0 && isFilled && JSON.stringify(board) === JSON.stringify(solution);
+    setIsComplete(isCorrect);
   };
 
   const solvePuzzle = () => {
@@ -290,12 +292,12 @@ export default function App() {
     >
       {/* Background blur elements removed to prevent flicker on some GPUs */}
 
-      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] lg:items-start">
-        <section className="rounded-[2rem] p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto grid w-full max-w-6xl gap-6 justify-center">
+        <section className="mx-auto w-full max-w-3xl rounded-[2rem] p-4 sm:p-6 lg:p-8">
           <div className="mb-6 flex flex-col items-center gap-4 text-center">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-950 text-2xl text-amber-100 shadow-[0_10px_30px_rgba(29,26,23,0.22)]">
-                🦁
+                26
               </div>
               <div>
                 <h1 className="text-4xl text-stone-950 sm:text-5xl">Lion Sudoku</h1>
