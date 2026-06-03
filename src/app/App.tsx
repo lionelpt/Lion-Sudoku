@@ -230,36 +230,15 @@ export default function App() {
       }
       setErrors(newErrors);
 
-      // Compute proximity-based color relative to the solution
+      // Compute a conservative color for the cell: only exact matches are green.
       if (num === 0) {
         const pm = { ...proximityMap };
         delete pm[cellKey];
         setProximityMap(pm);
+      } else if (newErrors.has(cellKey)) {
+        setProximityMap({ ...proximityMap, [cellKey]: 'red' });
       } else {
-        const maxDist = Math.sqrt(8 * 8 + 8 * 8);
-        let target: { r: number; c: number } | null = null;
-        for (let rr = 0; rr < 9 && !target; rr++) {
-          for (let cc = 0; cc < 9; cc++) {
-            if (solution[rr][cc] === num) {
-              target = { r: rr, c: cc };
-              break;
-            }
-          }
-        }
-        let severity: 'green' | 'yellow' | 'orange' | 'red' = 'red';
-        if (target) {
-          if (target.r === row && target.c === col) {
-            severity = 'green';
-          } else {
-            const dist = Math.sqrt((row - target.r) ** 2 + (col - target.c) ** 2);
-            const proximity = Math.max(0, 1 - dist / maxDist);
-            if (proximity >= 0.75) severity = 'yellow';
-            else if (proximity >= 0.5) severity = 'orange';
-            else severity = 'red';
-          }
-        } else {
-          severity = 'red';
-        }
+        const severity: 'green' | 'yellow' | 'orange' | 'red' = num === solution[row][col] ? 'green' : 'red';
         setProximityMap({ ...proximityMap, [cellKey]: severity });
       }
 
@@ -316,10 +295,10 @@ export default function App() {
 
   const getCellTone = (rowIndex: number, colIndex: number, isSelected: boolean, hasError: boolean, cellKey: string) => {
     const p = proximityMap[cellKey];
+    if (hasError) return 'bg-rose-50/95 text-rose-700 shadow-[inset_0_0_0_1px_rgba(190,24,93,0.18)]';
     if (p === 'green') return 'bg-emerald-50/90 text-emerald-800 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.12)]';
     if (p === 'yellow') return 'bg-amber-100/90 text-amber-950 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.08)]';
     if (p === 'orange') return 'bg-orange-100/90 text-orange-800 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.08)]';
-    if (hasError) return 'bg-rose-50/95 text-rose-700 shadow-[inset_0_0_0_1px_rgba(190,24,93,0.18)]';
     if (isSelected) return 'bg-amber-100/90 text-amber-950 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.15),0_8px_24px_rgba(120,83,48,0.12)]';
     if (selectedCell && (selectedCell.row === rowIndex || selectedCell.col === colIndex)) return 'bg-stone-50/95 text-stone-900';
     return 'bg-white/90 text-stone-900';
@@ -364,6 +343,7 @@ export default function App() {
                 const isBottomBorder = (rowIndex + 1) % 3 === 0 && rowIndex !== 8;
                 const cellKey = `${rowIndex}-${colIndex}`;
                 const cellNotes = notes[cellKey];
+                const proximity = proximityMap[cellKey];
                 const isRelated = selectedCell && (selectedCell.row === rowIndex || selectedCell.col === colIndex || (Math.floor(selectedCell.row / 3) === Math.floor(rowIndex / 3) && Math.floor(selectedCell.col / 3) === Math.floor(colIndex / 3)));
 
                     return (
@@ -383,7 +363,7 @@ export default function App() {
                         disabled={isInitial}
                       >
                         {cell !== 0 ? (
-                          <span className={`text-xl sm:text-2xl ${isInitial ? 'text-stone-950' : 'text-stone-700'}`}>
+                          <span className={`text-xl sm:text-2xl ${isInitial ? 'text-stone-950' : (proximity ? '' : 'text-stone-700')}`}>
                             {cell}
                           </span>
                         ) : cellNotes && cellNotes.size > 0 ? (
