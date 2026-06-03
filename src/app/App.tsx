@@ -273,30 +273,54 @@ export default function App() {
     setIsComplete(true);
   };
 
+  const selectedValue = selectedCell ? board[selectedCell.row][selectedCell.col] : 0;
+
+  const getCellTone = (rowIndex: number, colIndex: number, isSelected: boolean, hasError: boolean) => {
+    if (hasError) return 'bg-rose-50/95 text-rose-700 shadow-[inset_0_0_0_1px_rgba(190,24,93,0.18)]';
+    if (isSelected) return 'bg-amber-100/90 text-amber-950 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.15),0_8px_24px_rgba(120,83,48,0.12)]';
+    if (selectedCell && (selectedCell.row === rowIndex || selectedCell.col === colIndex)) return 'bg-stone-50/95 text-stone-900';
+    return 'bg-white/90 text-stone-900';
+  };
+
   return (
     <div
-      className="size-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-6"
+      className="relative min-h-screen overflow-hidden px-4 py-6 text-stone-900 sm:px-6 lg:px-8"
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
-      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full">
-        {/* Header */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <span className="text-4xl">🦁</span>
-          <h1 className="text-3xl text-blue-600">Lion Sudoku</h1>
-        </div>
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-12%] h-72 w-72 rounded-full bg-amber-200/40 blur-3xl" />
+        <div className="absolute right-[-8%] top-[10%] h-80 w-80 rounded-full bg-stone-400/20 blur-3xl" />
+        <div className="absolute bottom-[-12%] left-[20%] h-96 w-96 rounded-full bg-orange-100/80 blur-3xl" />
+      </div>
+
+      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] lg:items-start">
+        <section className="rounded-[2rem] border border-white/60 bg-white/55 p-4 shadow-[0_24px_80px_rgba(73,50,28,0.16)] backdrop-blur-xl sm:p-6 lg:p-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-950 text-2xl text-amber-100 shadow-[0_10px_30px_rgba(29,26,23,0.22)]">
+                🦁
+              </div>
+              <div>
+                <h1 className="text-4xl text-stone-950 sm:text-5xl">Lion Sudoku</h1>
+              </div>
+            </div>
+          </div>
 
         {isComplete && (
-          <div className="bg-green-50 border border-green-200 rounded-xl px-6 py-4 mb-6 text-center">
-            <span className="text-green-700 text-lg">🎉 Congratulations! Puzzle solved!</span>
+          <div className="mb-6 rounded-2xl border border-emerald-200/80 bg-emerald-50/90 px-6 py-4 text-center text-emerald-800 shadow-sm">
+            <span className="text-lg font-medium">🎉 Congratulations! Puzzle solved!</span>
           </div>
         )}
 
-        {/* Sudoku Grid */}
-        <div className="mb-6 flex justify-center">
-          <div className="grid grid-cols-9 gap-0 border-[3px] border-black bg-white">
-            {board.map((row, rowIndex) =>
-              row.map((cell, colIndex) => {
+          {/* Status cards removed as requested */}
+
+          {/* Sudoku Grid */}
+          <div className="mb-6 relative flex justify-center">
+            <div className="overflow-hidden rounded-[1.75rem] border border-stone-300/70 bg-white/90 shadow-[0_18px_60px_rgba(63,43,22,0.18)] ring-1 ring-white/60">
+              <div className="grid grid-cols-9 gap-0 bg-stone-200/70 p-0.5 sm:p-1">
+                {board.map((row, rowIndex) =>
+                  row.map((cell, colIndex) => {
                 const isSelected = selectedCell?.row === rowIndex && selectedCell?.col === colIndex;
                 const isInitial = initialPuzzle[rowIndex][colIndex] !== 0;
                 const hasError = errors.has(`${rowIndex}-${colIndex}`);
@@ -304,101 +328,118 @@ export default function App() {
                 const isBottomBorder = (rowIndex + 1) % 3 === 0 && rowIndex !== 8;
                 const cellKey = `${rowIndex}-${colIndex}`;
                 const cellNotes = notes[cellKey];
+                const isRelated = selectedCell && (selectedCell.row === rowIndex || selectedCell.col === colIndex || (Math.floor(selectedCell.row / 3) === Math.floor(rowIndex / 3) && Math.floor(selectedCell.col / 3) === Math.floor(colIndex / 3)));
 
-                return (
-                  <button
-                    key={cellKey}
-                    onClick={() => handleCellClick(rowIndex, colIndex)}
-                    className={`
-                      w-14 h-14 flex items-center justify-center relative
-                      border border-gray-200
-                      transition-all
-                      ${isSelected ? 'bg-blue-100 ring-2 ring-blue-500 ring-inset z-10' : ''}
-                      ${isInitial ? 'bg-slate-100' : 'bg-white'}
-                      ${hasError ? '!bg-red-50 text-red-600' : ''}
-                      ${!isInitial && !isSelected && !hasError ? 'hover:bg-blue-50' : ''}
-                      ${isRightBorder ? 'border-r-[3px] border-r-black' : ''}
-                      ${isBottomBorder ? 'border-b-[3px] border-b-black' : ''}
-                    `}
-                    disabled={isInitial}
-                  >
-                    {cell !== 0 ? (
-                      <span className={`text-2xl ${isInitial ? 'text-black' : 'text-blue-600'}`}>
-                        {cell}
-                      </span>
-                    ) : cellNotes && cellNotes.size > 0 ? (
-                      <div className="grid grid-cols-3 gap-[1px] w-full h-full p-0.5 text-[9px] text-gray-500">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                          <div key={num} className="flex items-center justify-center">
-                            {cellNotes.has(num) ? num : ''}
+                    return (
+                      <button
+                        key={cellKey}
+                        onClick={() => handleCellClick(rowIndex, colIndex)}
+                        className={`
+                          relative flex aspect-square w-10 items-center justify-center border border-stone-200/70 transition-all duration-200 sm:w-14
+                          ${getCellTone(rowIndex, colIndex, isSelected, hasError)}
+                          ${isInitial ? 'font-semibold' : 'font-medium'}
+                          ${isRelated && !isSelected ? 'bg-amber-50/70' : ''}
+                          ${isSelected ? 'z-10 ring-1 ring-amber-300/60' : ''}
+                          ${!isInitial && !isSelected && !hasError ? 'hover:-translate-y-px hover:bg-amber-50/90' : ''}
+                          ${isRightBorder ? 'border-r-[2.5px] border-r-stone-700/90' : ''}
+                          ${isBottomBorder ? 'border-b-[2.5px] border-b-stone-700/90' : ''}
+                        `}
+                        disabled={isInitial}
+                      >
+                        {cell !== 0 ? (
+                          <span className={`text-xl sm:text-2xl ${isInitial ? 'text-stone-950' : 'text-stone-700'}`}>
+                            {cell}
+                          </span>
+                        ) : cellNotes && cellNotes.size > 0 ? (
+                          <div className="grid h-full w-full grid-cols-3 gap-[1px] p-0.5 text-[8px] text-stone-500 sm:text-[9px]">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                              <div key={num} className="flex items-center justify-center">
+                                {cellNotes.has(num) ? num : ''}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    ) : null}
+                        ) : null}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+            </div>
+
+          {/* Aside content moved inside section to simplify layout */}
+          <div className="space-y-6 border border-white/60 bg-stone-950/90 p-4 text-stone-100 shadow-[0_24px_80px_rgba(25,19,13,0.32)] backdrop-blur-xl sm:p-6 lg:p-8">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-stone-400">Controls</p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  onClick={startNewGame}
+                  className="rounded-full border border-stone-700/80 bg-stone-900 px-5 py-2.5 text-sm font-semibold text-stone-100 shadow-sm transition-all hover:-translate-y-px hover:bg-stone-800"
+                >
+                  New Puzzle
+                </button>
+                <button
+                  onClick={checkSolution}
+                  className="rounded-full border border-stone-700/80 bg-stone-900 px-5 py-2.5 text-sm font-semibold text-stone-100 shadow-sm transition-all hover:-translate-y-px hover:bg-stone-800"
+                >
+                  Check
+                </button>
+                <button
+                  onClick={solvePuzzle}
+                  className="rounded-full border border-stone-700/80 bg-stone-900 px-5 py-2.5 text-sm font-semibold text-stone-100 shadow-sm transition-all hover:-translate-y-px hover:bg-stone-800"
+                >
+                  Solve
+                </button>
+                <button
+                  onClick={() => setNotesMode(!notesMode)}
+                  className={`rounded-full border px-5 py-2.5 text-sm font-semibold shadow-sm transition-all hover:-translate-y-px ${
+                    notesMode
+                      ? 'border-amber-300 bg-amber-200 text-stone-950'
+                      : 'border-stone-700/80 bg-stone-900 text-stone-100 hover:bg-stone-800'
+                  }`}
+                >
+                  Notes {notesMode ? 'On' : 'Off'}
+                </button>
+                <button
+                  onClick={resetPuzzle}
+                  className="rounded-full border border-stone-700/80 bg-stone-900 px-5 py-2.5 text-sm font-semibold text-stone-100 shadow-sm transition-all hover:-translate-y-px hover:bg-stone-800"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-4 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-stone-400">Number pad</p>
+                  <p className="mt-2 text-sm text-stone-300">Use it to enter values or toggle notes.</p>
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-stone-300">
+                  {selectedCell ? 'Active' : 'Idle'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                  <button
+                    key={num}
+                    onClick={() => handleNumberInput(num)}
+                    className="h-14 rounded-2xl border border-white/10 bg-white/5 text-lg font-semibold text-white transition-all hover:-translate-y-px hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                    disabled={!selectedCell || (selectedCell && initialPuzzle[selectedCell.row][selectedCell.col] !== 0)}
+                  >
+                    {num}
                   </button>
-                );
-              })
-            )}
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 text-sm leading-6 text-stone-300">
+              <p className="font-semibold text-stone-100">How to play</p>
+              <p className="mt-2">Fill the empty spaces with numbers from 1 to 9 without repeating in rows, columns, or 3×3 blocks.</p>
+              <p className="mt-3 text-stone-400">Tip: Notes mode is ideal for marking candidates before locking a move.</p>
+            </div>
           </div>
-        </div>
-
-        {/* Control Buttons */}
-        <div className="flex gap-2 flex-wrap justify-center mb-6">
-          <button
-            onClick={startNewGame}
-            className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition-colors border border-slate-200"
-          >
-            New Puzzle
-          </button>
-          <button
-            onClick={checkSolution}
-            className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition-colors border border-slate-200"
-          >
-            Check
-          </button>
-          <button
-            onClick={solvePuzzle}
-            className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition-colors border border-slate-200"
-          >
-            Solve
-          </button>
-          <button
-            onClick={() => setNotesMode(!notesMode)}
-            className={`px-6 py-2.5 rounded-full transition-colors border ${
-              notesMode
-                ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-            }`}
-          >
-            Notes {notesMode ? '✓' : ''}
-          </button>
-          <button
-            onClick={resetPuzzle}
-            className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition-colors border border-slate-200"
-          >
-            Reset
-          </button>
-        </div>
-
-        {/* Number Pad */}
-        <div className="grid grid-cols-9 gap-2 mb-6">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button
-              key={num}
-              onClick={() => handleNumberInput(num)}
-              className="h-12 bg-slate-100 hover:bg-blue-100 text-slate-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed border border-slate-200"
-              disabled={!selectedCell || (selectedCell && initialPuzzle[selectedCell.row][selectedCell.col] !== 0)}
-            >
-              {num}
-            </button>
-          ))}
-        </div>
-
-        {/* Instructions */}
-        <div className="text-center text-sm text-gray-600 space-y-1">
-          <p>Fill the empty spaces with numbers from 1 to 9 without repeating in rows, columns, or 3×3 blocks.</p>
-          <p className="text-gray-500">Tip: Use Notes mode to mark possible numbers, then solve step by step.</p>
-        </div>
+        </section>
       </div>
     </div>
   );
