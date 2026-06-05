@@ -161,6 +161,7 @@ export default function App() {
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
   const [notesMode, setNotesMode] = useState(false);
   const [notes, setNotes] = useState<Notes>({});
+  const [hintMessage, setHintMessage] = useState<string | null>(null);
 
   useEffect(() => {
     startNewGame();
@@ -178,6 +179,7 @@ export default function App() {
     setSelectedCell(null);
     setNotes({});
     setNotesMode(false);
+    setHintMessage(null);
   };
 
   const resetPuzzle = () => {
@@ -187,11 +189,13 @@ export default function App() {
     setProximityMap({});
     setAttemptCounts({});
     setNotes({});
+    setHintMessage(null);
   };
 
   const handleCellClick = (row: number, col: number) => {
     if (initialPuzzle[row][col] === 0) {
       setSelectedCell({ row, col });
+      setHintMessage(null);
     }
   };
 
@@ -298,6 +302,37 @@ export default function App() {
     setNotes({});
     setIsComplete(true);
     setProximityMap({});
+    setHintMessage(null);
+  };
+
+  const suggestNumber = () => {
+    if (!selectedCell) {
+      setHintMessage('Selecione uma célula vazia para receber uma dica.');
+      return;
+    }
+
+    const { row, col } = selectedCell;
+    if (initialPuzzle[row][col] !== 0) {
+      setHintMessage('Essa célula não pode ser alterada.');
+      return;
+    }
+
+    // Compute valid candidates based on current board
+    const candidates: number[] = [];
+    for (let n = 1; n <= 9; n++) {
+      if (isValidMove(board, row, col, n)) candidates.push(n);
+    }
+
+    const sol = solution[row][col];
+    if (candidates.length === 0) {
+      setHintMessage(`Nenhum candidato válido encontrado — o tabuleiro pode estar inconsistente. Solução: ${sol}`);
+    } else if (candidates.length === 1) {
+      setHintMessage(`Sugestão: adiciona o nº ${candidates[0]}.`);
+    } else if (candidates.includes(sol)) {
+      setHintMessage(`Sugestão: adiciona o nº ${sol} (entre os candidatos ${candidates.join(', ')}).`);
+    } else {
+      setHintMessage(`Possíveis candidatos: ${candidates.join(', ')}. (Solução: ${sol})`);
+    }
   };
 
   const selectedValue = selectedCell ? board[selectedCell.row][selectedCell.col] : 0;
@@ -412,7 +447,12 @@ export default function App() {
             >
               Solve
             </button>
-            {/* Notes button removed per request */}
+            <button
+              onClick={suggestNumber}
+              className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
+            >
+              Help
+            </button>
             <button
               onClick={resetPuzzle}
               className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
@@ -420,6 +460,12 @@ export default function App() {
               Reset
             </button>
           </div>
+
+          {hintMessage && (
+            <div className="mt-4 text-center text-sm text-stone-700">
+              {hintMessage}
+            </div>
+          )}
 
           {selectedCell && attemptCounts[`${selectedCell.row}-${selectedCell.col}`] != null && (
             <div className="mt-4 text-center text-sm text-stone-700">
