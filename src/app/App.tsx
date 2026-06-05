@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // Sudoku puzzle generator helper
 const generatePuzzle = (): { puzzle: number[][], solution: number[][] } => {
@@ -162,6 +162,7 @@ export default function App() {
   const [notesMode, setNotesMode] = useState(false);
   const [notes, setNotes] = useState<Notes>({});
   const [hintMessage, setHintMessage] = useState<string | null>(null);
+  const hintTimer = useRef<number | null>(null);
 
   useEffect(() => {
     startNewGame();
@@ -198,6 +199,8 @@ export default function App() {
       setHintMessage(null);
     }
   };
+
+  
 
   const handleNumberInput = (num: number) => {
     if (!selectedCell) return;
@@ -324,16 +327,154 @@ export default function App() {
     }
 
     const sol = solution[row][col];
+    // Helper to format cell coordinates (1-based)
+    const fmt = (r: number, c: number) => `R${r + 1}C${c + 1}`;
+
+    // Find cells that conflict with a given value (same row/col/box)
+    const findConflictsForValue = (value: number) => {
+      const keys = new Set<string>();
+      const conflicts: { r: number; c: number; v: number }[] = [];
+      for (let c = 0; c < 9; c++) {
+        if (c !== col && board[row][c] === value) {
+          const k = `${row}-${c}`;
+          if (!keys.has(k)) {
+            keys.add(k);
+            conflicts.push({ r: row, c, v: board[row][c] });
+          }
+        }
+      }
+      for (let r = 0; r < 9; r++) {
+        if (r !== row && board[r][col] === value) {
+          const k = `${r}-${col}`;
+          if (!keys.has(k)) {
+            keys.add(k);
+            conflicts.push({ r, c: col, v: board[r][col] });
+          }
+        }
+      }
+      const startRow = Math.floor(row / 3) * 3;
+      const startCol = Math.floor(col / 3) * 3;
+      for (let dr = 0; dr < 3; dr++) {
+        for (let dc = 0; dc < 3; dc++) {
+          const r = startRow + dr;
+          const c = startCol + dc;
+          if ((r !== row || c !== col) && board[r][c] === value) {
+            const k = `${r}-${c}`;
+            if (!keys.has(k)) {
+              keys.add(k);
+              conflicts.push({ r, c, v: board[r][c] });
+            }
+          }
+        }
+      }
+      return conflicts;
+    };
+
+    // Find general duplicates in row/col/box (helpful to spot inconsistencies)
+    const findDuplicatesAround = () => {
+      const dups: Array<{ unit: string; cells: string[]; value: number }> = [];
+
+      // Row
+      const mapRow = new Map<number, number[]>();
+      for (let c = 0; c < 9; c++) {
+        const v = board[row][c];
+        if (v === 0) continue;
+        mapRow.set(v, (mapRow.get(v) || []).concat(c));
+      }
+      for (const [v, cols] of mapRow.entries()) {
+        if (cols.length > 1) dups.push({ unit: `Linha ${row + 1}`, cells: cols.map(c => fmt(row, c)), value: v });
+      }
+
+      // Col
+      const mapCol = new Map<number, number[]>();
+      for (let r = 0; r < 9; r++) {
+        const v = board[r][col];
+        if (v === 0) continue;
+        mapCol.set(v, (mapCol.get(v) || []).concat(r));
+      }
+      for (const [v, rows] of mapCol.entries()) {
+        if (rows.length > 1) dups.push({ unit: `Coluna ${col + 1}`, cells: rows.map(r => fmt(r, col)), value: v });
+      }
+
+      // Box
+      const startR = Math.floor(row / 3) * 3;
+      const startC = Math.floor(col / 3) * 3;
+      const mapBox = new Map<number, string[]>();
+      for (let dr = 0; dr < 3; dr++) {
+        for (let dc = 0; dc < 3; dc++) {
+          const r = startR + dr;
+          const c = startC + dc;
+          const v = board[r][c];
+          if (v === 0) continue;
+          mapBox.set(v, (mapBox.get(v) || []).concat(fmt(r, c)));
+        }
+      }
+      for (const [v, cells] of mapBox.entries()) {
+        if (cells.length > 1) dups.push({ unit: `Bloco ${Math.floor(row / 3) * 3 + Math.floor(col / 3) + 1}`, cells, value: v });
+      }
+
+      return dups;
+    };
+
     if (candidates.length === 0) {
-      setHintMessage(`Nenhum candidato válido encontrado — o tabuleiro pode estar inconsistente. Solução: ${sol}`);
+      // No valid candidate — try to explain which cells cause conflicts
+      const dups = findDuplicatesAround();
+      const solConflicts = findConflictsForValue(sol);
+
+      if (solConflicts.length > 0) {
+        const list = solConflicts.map(c => `${fmt(c.r, c.c)} (valor ${c.v})`).join(', ');
+        setHintMessage(`Para inserir ${sol}, conflitam as células: ${list}. Sugestão: limpe ou corrija essas células.`);
+      } else if (dups.length > 0) {
+        const parts = dups.map(d => `${d.unit} tem ${d.cells.join(', ')} com o número ${d.value}`);
+        setHintMessage(`Nenhum candidato válido — possíveis duplicados: ${parts.join(' ; ')}. Corrija-os para restaurar consistência.`);
+      } else {
+        setHintMessage(`Nenhum candidato válido encontrado — o tabuleiro pode estar inconsistente. Solução: ${sol}`);
+      }
     } else if (candidates.length === 1) {
       setHintMessage(`Sugestão: adiciona o nº ${candidates[0]}.`);
     } else if (candidates.includes(sol)) {
       setHintMessage(`Sugestão: adiciona o nº ${sol} (entre os candidatos ${candidates.join(', ')}).`);
     } else {
-      setHintMessage(`Possíveis candidatos: ${candidates.join(', ')}. (Solução: ${sol})`);
+      // There are candidates but solution isn't one — point out cells preventing solution if any
+      const solConflicts = findConflictsForValue(sol);
+      if (solConflicts.length > 0) {
+        const list = solConflicts.map(c => `${fmt(c.r, c.c)} (valor ${c.v})`).join(', ');
+        setHintMessage(`Possíveis candidatos: ${candidates.join(', ')}. Para que ${sol} fosse possível, corrija: ${list}.`);
+      } else {
+        setHintMessage(`Possíveis candidatos: ${candidates.join(', ')}. (Solução: ${sol})`);
+      }
     }
   };
+
+  // Auto-suggest after 15s idle on a selected empty cell
+  useEffect(() => {
+    // Clear existing timer
+    if (hintTimer.current) {
+      clearTimeout(hintTimer.current);
+      hintTimer.current = null;
+    }
+
+    if (!selectedCell) return;
+
+    const { row, col } = selectedCell;
+    // Only schedule if it's an editable empty cell
+    if (initialPuzzle[row][col] !== 0) return;
+    if (board[row][col] !== 0) return;
+
+    // Schedule suggestion after 15 seconds
+    hintTimer.current = window.setTimeout(() => {
+      suggestNumber();
+      hintTimer.current = null;
+    }, 15000);
+
+    return () => {
+      if (hintTimer.current) {
+        clearTimeout(hintTimer.current);
+        hintTimer.current = null;
+      }
+    };
+  // Re-evaluate when selected cell, board or puzzle changes
+  }, [selectedCell, board, initialPuzzle]);
 
   const selectedValue = selectedCell ? board[selectedCell.row][selectedCell.col] : 0;
 
