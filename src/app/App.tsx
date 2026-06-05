@@ -158,6 +158,7 @@ export default function App() {
   const [errors, setErrors] = useState<Set<string>>(new Set());
   const [isComplete, setIsComplete] = useState(false);
   const [proximityMap, setProximityMap] = useState<Record<string, 'green' | 'yellow' | 'orange' | 'red'>>({});
+  const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
   const [notesMode, setNotesMode] = useState(false);
   const [notes, setNotes] = useState<Notes>({});
 
@@ -173,6 +174,7 @@ export default function App() {
     setErrors(new Set());
     setIsComplete(false);
     setProximityMap({});
+    setAttemptCounts({});
     setSelectedCell(null);
     setNotes({});
     setNotesMode(false);
@@ -183,6 +185,7 @@ export default function App() {
     setErrors(new Set());
     setIsComplete(false);
     setProximityMap({});
+    setAttemptCounts({});
     setNotes({});
   };
 
@@ -217,6 +220,12 @@ export default function App() {
       const newBoard = board.map(r => [...r]);
       newBoard[row][col] = num;
       setBoard(newBoard);
+
+      const newAttemptCounts = { ...attemptCounts };
+      if (num !== 0) {
+        newAttemptCounts[cellKey] = (newAttemptCounts[cellKey] ?? 0) + 1;
+      }
+      setAttemptCounts(newAttemptCounts);
 
       // Clear notes for this cell
       const newNotes = { ...notes };
@@ -411,6 +420,12 @@ export default function App() {
               Reset
             </button>
           </div>
+
+          {selectedCell && attemptCounts[`${selectedCell.row}-${selectedCell.col}`] != null && (
+            <div className="mt-4 text-center text-sm text-stone-700">
+              Attempts in this cell: {attemptCounts[`${selectedCell.row}-${selectedCell.col}`]}
+            </div>
+          )}
         </section>
       </div>
     </div>
