@@ -156,6 +156,7 @@ export default function App() {
   const [solution, setSolution] = useState<number[][]>([]);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [errors, setErrors] = useState<Set<string>>(new Set());
+  const [conflicts, setConflicts] = useState<Set<string>>(new Set());
   const [isComplete, setIsComplete] = useState(false);
   const [proximityMap, setProximityMap] = useState<Record<string, 'green' | 'yellow' | 'orange' | 'red'>>({});
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
@@ -163,10 +164,73 @@ export default function App() {
   const [notes, setNotes] = useState<Notes>({});
   const [hintMessage, setHintMessage] = useState<string | null>(null);
   const hintTimer = useRef<number | null>(null);
+  // Undo/Redo history stacks: store snapshots of game state for undo/redo
+  const undoStack = useRef<any[]>([]);
+  const redoStack = useRef<any[]>([]);
+  // Simple action log for UI display (recent actions)
+  const [actionLog, setActionLog] = useState<string[]>([]);
 
   useEffect(() => {
     startNewGame();
   }, []);
+
+  // Recompute visual conflicts whenever the board changes
+  useEffect(() => {
+    const newConflicts = new Set<string>();
+
+    // Row conflicts
+    for (let r = 0; r < 9; r++) {
+      const counts = new Map<number, number[]>();
+      for (let c = 0; c < 9; c++) {
+        const v = board[r]?.[c] ?? 0;
+        if (v === 0) continue;
+        counts.set(v, (counts.get(v) || []).concat(c));
+      }
+      for (const [v, cols] of counts.entries()) {
+        if (cols.length > 1) {
+          cols.forEach(c => newConflicts.add(`${r}-${c}`));
+        }
+      }
+    }
+
+    // Column conflicts
+    for (let c = 0; c < 9; c++) {
+      const counts = new Map<number, number[]>();
+      for (let r = 0; r < 9; r++) {
+        const v = board[r]?.[c] ?? 0;
+        if (v === 0) continue;
+        counts.set(v, (counts.get(v) || []).concat(r));
+      }
+      for (const [v, rows] of counts.entries()) {
+        if (rows.length > 1) {
+          rows.forEach(r => newConflicts.add(`${r}-${c}`));
+        }
+      }
+    }
+
+    // Box conflicts
+    for (let br = 0; br < 3; br++) {
+      for (let bc = 0; bc < 3; bc++) {
+        const counts = new Map<number, Array<[number, number]>>();
+        for (let dr = 0; dr < 3; dr++) {
+          for (let dc = 0; dc < 3; dc++) {
+            const r = br * 3 + dr;
+            const c = bc * 3 + dc;
+            const v = board[r]?.[c] ?? 0;
+            if (v === 0) continue;
+            counts.set(v, (counts.get(v) || []).concat([[r, c]]));
+          }
+        }
+        for (const [v, cells] of counts.entries()) {
+          if (cells.length > 1) {
+            cells.forEach(([r, c]) => newConflicts.add(`${r}-${c}`));
+          }
+        }
+      }
+    }
+
+    setConflicts(newConflicts);
+  }, [board]);
 
   const startNewGame = () => {
     const { puzzle, solution } = generatePuzzle();
@@ -181,6 +245,10 @@ export default function App() {
     setNotes({});
     setNotesMode(false);
     setHintMessage(null);
+    // clear history on new game: reset undo/redo stacks and the action log
+    undoStack.current = [];
+    redoStack.current = [];
+    setActionLog([]);
   };
 
   const resetPuzzle = () => {
@@ -191,6 +259,10 @@ export default function App() {
     setAttemptCounts({});
     setNotes({});
     setHintMessage(null);
+    // reset history after a manual reset and log the action
+    undoStack.current = [];
+    redoStack.current = [];
+    setActionLog(logs => logs.concat(['Reset puzzle']));
   };
 
   const handleCellClick = (row: number, col: number) => {
@@ -207,6 +279,9 @@ export default function App() {
 
     const { row, col } = selectedCell;
     if (initialPuzzle[row][col] !== 0) return;
+
+    // Save state for undo/redo before mutating the board
+    pushHistory(`Input ${num} at R${row + 1}C${col + 1}`);
 
     const cellKey = `${row}-${col}`;
 
@@ -306,6 +381,70 @@ export default function App() {
     setIsComplete(true);
     setProximityMap({});
     setHintMessage(null);
+    // clear history when puzzle is auto-solved
+    undoStack.current = [];
+    redoStack.current = [];
+    setActionLog(logs => logs.concat(['Auto-solved puzzle']));
+  };
+
+  const pushHistory = (description?: string) => {
+    // Create a lightweight snapshot of relevant game state to enable undo
+    const snapshot = {
+      board: board.map(r => [...r]),
+      notes: Object.fromEntries(Object.entries(notes).map(([k, s]) => [k, new Set(Array.from(s))])),
+      selectedCell: selectedCell ? { ...selectedCell } : null,
+      attemptCounts: { ...attemptCounts },
+      errors: new Set(Array.from(errors)),
+      proximityMap: { ...proximityMap }
+    };
+    undoStack.current.push(snapshot);
+    if (undoStack.current.length > 200) undoStack.current.shift();
+    redoStack.current = [];
+    if (description) setActionLog(logs => logs.concat([description]));
+  };
+
+  const doUndo = () => {
+    // Pop the last snapshot and restore it; push current state onto redo stack
+    const prev = undoStack.current.pop();
+    if (!prev) return;
+    const current = {
+      board: board.map(r => [...r]),
+      notes: Object.fromEntries(Object.entries(notes).map(([k, s]) => [k, new Set(Array.from(s))])),
+      selectedCell: selectedCell ? { ...selectedCell } : null,
+      attemptCounts: { ...attemptCounts },
+      errors: new Set(Array.from(errors)),
+      proximityMap: { ...proximityMap }
+    };
+    redoStack.current.push(current);
+    setBoard(prev.board.map((r: number[]) => [...r]));
+    setNotes(Object.fromEntries(Object.entries(prev.notes).map(([k, s]: any) => [k, new Set(Array.from(s))])));
+    setSelectedCell(prev.selectedCell);
+    setAttemptCounts(prev.attemptCounts);
+    setErrors(new Set(Array.from(prev.errors)));
+    setProximityMap(prev.proximityMap);
+    setActionLog(logs => logs.concat(['Undo']));
+  };
+
+  const doRedo = () => {
+    // Restore the next snapshot from redo stack and push current to undo
+    const next = redoStack.current.pop();
+    if (!next) return;
+    const current = {
+      board: board.map(r => [...r]),
+      notes: Object.fromEntries(Object.entries(notes).map(([k, s]) => [k, new Set(Array.from(s))])),
+      selectedCell: selectedCell ? { ...selectedCell } : null,
+      attemptCounts: { ...attemptCounts },
+      errors: new Set(Array.from(errors)),
+      proximityMap: { ...proximityMap }
+    };
+    undoStack.current.push(current);
+    setBoard(next.board.map((r: number[]) => [...r]));
+    setNotes(Object.fromEntries(Object.entries(next.notes).map(([k, s]: any) => [k, new Set(Array.from(s))])));
+    setSelectedCell(next.selectedCell);
+    setAttemptCounts(next.attemptCounts);
+    setErrors(new Set(Array.from(next.errors)));
+    setProximityMap(next.proximityMap);
+    setActionLog(logs => logs.concat(['Redo']));
   };
 
   const suggestNumber = () => {
@@ -480,6 +619,7 @@ export default function App() {
 
   const getCellTone = (rowIndex: number, colIndex: number, isSelected: boolean, hasError: boolean, cellKey: string) => {
     const p = proximityMap[cellKey];
+    if (conflicts.has(cellKey)) return 'bg-rose-50/95 text-rose-700 shadow-[inset_0_0_0_1px_rgba(190,24,93,0.18)]';
     if (hasError) return 'bg-rose-50/95 text-rose-700 shadow-[inset_0_0_0_1px_rgba(190,24,93,0.18)]';
     if (p === 'green') return 'bg-emerald-50/90 text-emerald-800 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.12)]';
     if (p === 'yellow') return 'bg-amber-100/90 text-amber-950 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.08)]';
@@ -589,6 +729,18 @@ export default function App() {
               Solve
             </button>
             <button
+              onClick={doUndo}
+              className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
+            >
+              Undo
+            </button>
+            <button
+              onClick={doRedo}
+              className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
+            >
+              Redo
+            </button>
+            <button
               onClick={suggestNumber}
               className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
             >
@@ -605,6 +757,13 @@ export default function App() {
           {hintMessage && (
             <div className="mt-4 text-center text-sm text-stone-700">
               {hintMessage}
+            </div>
+          )}
+
+          {actionLog.length > 0 && (
+            <div className="mt-3 text-center text-xs text-stone-500">
+              <div className="font-medium">History</div>
+              <div>{actionLog.slice(-5).map((a, i) => <div key={i}>{a}</div>)}</div>
             </div>
           )}
 
