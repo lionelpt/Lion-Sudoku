@@ -81,28 +81,57 @@ const generatePuzzle = (): { puzzle: number[][], solution: number[][] } => {
   solution = remapDigits(solution, digitMap);
 
   // Randomize row/column structures while keeping a valid board.
-  const applyBoardTransforms = (board: number[][]) => {
-    const bandA = randomInt(3);
-    let bandB = randomInt(3);
-    while (bandB === bandA) bandB = randomInt(3);
-    swapRowBands(board, bandA, bandB);
+  // To avoid desynchronizing puzzle and solution, generate a transform spec
+  // once and apply the same operations to both boards.
+  type TransformSpec = {
+    swapBandA: number;
+    swapBandB: number;
+    swapStackA: number;
+    swapStackB: number;
+    bandRowOrders: number[][]; // for each band, permutation of [0,1,2]
+    stackColOrders: number[][]; // for each stack, permutation of [0,1,2]
+  };
 
-    const stackA = randomInt(3);
-    let stackB = randomInt(3);
-    while (stackB === stackA) stackB = randomInt(3);
-    swapColStacks(board, stackA, stackB);
+  const generateTransformSpec = (): TransformSpec => {
+    const swapBandA = randomInt(3);
+    let swapBandB = randomInt(3);
+    while (swapBandB === swapBandA) swapBandB = randomInt(3);
 
+    const swapStackA = randomInt(3);
+    let swapStackB = randomInt(3);
+    while (swapStackB === swapStackA) swapStackB = randomInt(3);
+
+    const bandRowOrders: number[][] = [];
     for (let band = 0; band < 3; band++) {
-      const rows = shuffle([0, 1, 2]);
-      const [r0, r1, r2] = rows;
-      const original = board.slice(band * 3, band * 3 + 3);
-      board[band * 3] = [...original[r0]];
-      board[band * 3 + 1] = [...original[r1]];
-      board[band * 3 + 2] = [...original[r2]];
+      bandRowOrders.push(shuffle([0, 1, 2]));
     }
 
+    const stackColOrders: number[][] = [];
     for (let stack = 0; stack < 3; stack++) {
-      const cols = shuffle([0, 1, 2]);
+      stackColOrders.push(shuffle([0, 1, 2]));
+    }
+
+    return { swapBandA, swapBandB, swapStackA, swapStackB, bandRowOrders, stackColOrders };
+  };
+
+  const applyTransformSpec = (board: number[][], spec: TransformSpec) => {
+    // swap bands
+    swapRowBands(board, spec.swapBandA, spec.swapBandB);
+    // swap stacks
+    swapColStacks(board, spec.swapStackA, spec.swapStackB);
+
+    // apply row permutations within each band
+    for (let band = 0; band < 3; band++) {
+      const rows = spec.bandRowOrders[band];
+      const original = board.slice(band * 3, band * 3 + 3);
+      board[band * 3] = [...original[rows[0]]];
+      board[band * 3 + 1] = [...original[rows[1]]];
+      board[band * 3 + 2] = [...original[rows[2]]];
+    }
+
+    // apply column permutations within each stack
+    for (let stack = 0; stack < 3; stack++) {
+      const cols = spec.stackColOrders[stack];
       for (let row = 0; row < 9; row++) {
         const original = board[row].slice(stack * 3, stack * 3 + 3);
         board[row][stack * 3] = original[cols[0]];
@@ -112,8 +141,9 @@ const generatePuzzle = (): { puzzle: number[][], solution: number[][] } => {
     }
   };
 
-  applyBoardTransforms(puzzle);
-  applyBoardTransforms(solution);
+  const spec = generateTransformSpec();
+  applyTransformSpec(puzzle, spec);
+  applyTransformSpec(solution, spec);
 
   if (Math.random() > 0.5) {
     puzzle = transpose(puzzle);
