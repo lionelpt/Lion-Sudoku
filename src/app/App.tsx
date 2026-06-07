@@ -164,11 +164,13 @@ export default function App() {
   const [notes, setNotes] = useState<Notes>({});
   const [hintMessage, setHintMessage] = useState<string | null>(null);
   const hintTimer = useRef<number | null>(null);
+  const hoverTimer = useRef<number | null>(null);
+  const [hintTarget, setHintTarget] = useState<{ row: number; col: number } | null>(null);
   // Undo/Redo history stacks: store snapshots of game state for undo/redo
-  const undoStack = useRef<any[]>([]);
-  const redoStack = useRef<any[]>([]);
+  // const undoStack = useRef<any[]>([]);
+  // const redoStack = useRef<any[]>([]);
   // Simple action log for UI display (recent actions)
-  const [actionLog, setActionLog] = useState<string[]>([]);
+  // const [actionLog, setActionLog] = useState<string[]>([]);
 
   useEffect(() => {
     startNewGame();
@@ -246,9 +248,9 @@ export default function App() {
     setNotesMode(false);
     setHintMessage(null);
     // clear history on new game: reset undo/redo stacks and the action log
-    undoStack.current = [];
-    redoStack.current = [];
-    setActionLog([]);
+    // undoStack.current = [];
+    // redoStack.current = [];
+    // setActionLog([]);
   };
 
   const resetPuzzle = () => {
@@ -260,9 +262,9 @@ export default function App() {
     setNotes({});
     setHintMessage(null);
     // reset history after a manual reset and log the action
-    undoStack.current = [];
-    redoStack.current = [];
-    setActionLog(logs => logs.concat(['Reset puzzle']));
+    // undoStack.current = [];
+    // redoStack.current = [];
+    // setActionLog(logs => logs.concat(['Reset puzzle']));
   };
 
   const handleCellClick = (row: number, col: number) => {
@@ -272,6 +274,36 @@ export default function App() {
     }
   };
 
+  const handleCellHoverStart = (row: number, col: number) => {
+    // Only show hints for editable cells
+      if (hoverTimer.current) {
+        clearTimeout(hoverTimer.current);
+        hoverTimer.current = null;
+      }
+    if (initialPuzzle[row][col] !== 0) return;
+    // clear any existing hover timer
+    if (hoverTimer.current) {
+      window.clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    // wait 5 seconds of hover before suggesting (show-only)
+    hoverTimer.current = window.setTimeout(() => {
+      suggestNumber({ row, col });
+      hoverTimer.current = null;
+    }, 5000);
+  };
+
+  const handleCellHoverEnd = () => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setHintTarget(null);
+    // hide any hover suggestion
+    setHintTarget(null);
+    setHintMessage(null);
+  };
+
   
 
   const handleNumberInput = (num: number) => {
@@ -279,9 +311,14 @@ export default function App() {
 
     const { row, col } = selectedCell;
     if (initialPuzzle[row][col] !== 0) return;
+      if (hoverTimer.current) {
+        clearTimeout(hoverTimer.current);
+        hoverTimer.current = null;
+      }
+      setHintTarget(null);
 
     // Save state for undo/redo before mutating the board
-    pushHistory(`Input ${num} at R${row + 1}C${col + 1}`);
+    // pushHistory(`Input ${num} at R${row + 1}C${col + 1}`);
 
     const cellKey = `${row}-${col}`;
 
@@ -382,11 +419,12 @@ export default function App() {
     setProximityMap({});
     setHintMessage(null);
     // clear history when puzzle is auto-solved
-    undoStack.current = [];
-    redoStack.current = [];
-    setActionLog(logs => logs.concat(['Auto-solved puzzle']));
+    // undoStack.current = [];
+    // redoStack.current = [];
+    // setActionLog(logs => logs.concat(['Auto-solved puzzle']));
   };
 
+  /*
   const pushHistory = (description?: string) => {
     // Create a lightweight snapshot of relevant game state to enable undo
     const snapshot = {
@@ -446,18 +484,25 @@ export default function App() {
     setProximityMap(next.proximityMap);
     setActionLog(logs => logs.concat(['Redo']));
   };
+  */
 
-  const suggestNumber = () => {
-    if (!selectedCell) {
-      setHintMessage('Selecione uma célula vazia para receber uma dica.');
+  const suggestNumber = (targetCell?: { row: number; col: number }) => {
+    const target = targetCell ?? selectedCell;
+    if (!target) {
+      setHintMessage('Selecione ou passe o cursor sobre uma célula vazia para receber uma dica.');
+      setHintTarget(null);
       return;
     }
 
-    const { row, col } = selectedCell;
+    const { row, col } = target;
     if (initialPuzzle[row][col] !== 0) {
       setHintMessage('Essa célula não pode ser alterada.');
+      setHintTarget(null);
       return;
     }
+
+    // Mark target so UI can render the suggestion over the cell
+    setHintTarget({ row, col });
 
     // Compute valid candidates based on current board
     const candidates: number[] = [];
@@ -611,6 +656,12 @@ export default function App() {
         clearTimeout(hintTimer.current);
         hintTimer.current = null;
       }
+      if (hoverTimer.current) {
+        clearTimeout(hoverTimer.current);
+        hoverTimer.current = null;
+      }
+      setHintTarget(null);
+      setHintTarget(null);
     };
   // Re-evaluate when selected cell, board or puzzle changes
   }, [selectedCell, board, initialPuzzle]);
@@ -657,7 +708,7 @@ export default function App() {
 
           {/* Sudoku Grid */}
           <div className="mb-6 relative flex justify-center">
-            <div className="board-wrapper overflow-hidden rounded-none bg-transparent shadow-none">
+            <div className="board-wrapper overflow-visible rounded-none bg-transparent shadow-none">
               <div className="grid grid-cols-9 gap-0 bg-transparent p-0 sm:p-0">
                 {board.map((row, rowIndex) =>
                   row.map((cell, colIndex) => {
@@ -675,6 +726,8 @@ export default function App() {
                       <button
                         key={cellKey}
                         onClick={() => handleCellClick(rowIndex, colIndex)}
+                        onMouseEnter={() => handleCellHoverStart(rowIndex, colIndex)}
+                        onMouseLeave={() => handleCellHoverEnd()}
                         className={`
                           relative flex aspect-square items-center justify-center border border-stone-200/70 transition-all duration-200
                           ${getCellTone(rowIndex, colIndex, isSelected, hasError, cellKey)}
@@ -700,6 +753,11 @@ export default function App() {
                             ))}
                           </div>
                         ) : null}
+                        {hintTarget && hintTarget.row === rowIndex && hintTarget.col === colIndex && hintMessage && (
+                          <div className="absolute -top-14 left-1/2 z-50 w-max max-w-[22rem] -translate-x-1/2 rounded-md bg-stone-900/95 px-3 py-2 text-sm text-white shadow-lg break-words whitespace-normal">
+                            {hintMessage}
+                          </div>
+                        )}
                       </button>
                     );
                   })
@@ -728,6 +786,7 @@ export default function App() {
             >
               Solve
             </button>
+            {/*
             <button
               onClick={doUndo}
               className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
@@ -740,8 +799,9 @@ export default function App() {
             >
               Redo
             </button>
+            */}
             <button
-              onClick={suggestNumber}
+              onClick={() => suggestNumber()}
               className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
             >
               Help
@@ -754,18 +814,20 @@ export default function App() {
             </button>
           </div>
 
-          {hintMessage && (
+          {hintMessage && !hintTarget && (
             <div className="mt-4 text-center text-sm text-stone-700">
               {hintMessage}
             </div>
           )}
 
+          {/*
           {actionLog.length > 0 && (
             <div className="mt-3 text-center text-xs text-stone-500">
               <div className="font-medium">History</div>
               <div>{actionLog.slice(-5).map((a, i) => <div key={i}>{a}</div>)}</div>
             </div>
           )}
+          */}
 
           {selectedCell && attemptCounts[`${selectedCell.row}-${selectedCell.col}`] != null && (
             <div className="mt-4 text-center text-sm text-stone-700">
