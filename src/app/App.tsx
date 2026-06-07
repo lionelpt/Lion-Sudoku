@@ -195,6 +195,12 @@ export default function App() {
   const [hintMessage, setHintMessage] = useState<string | null>(null);
   const hintTimer = useRef<number | null>(null);
   const hoverTimer = useRef<number | null>(null);
+  const hoverInterval = useRef<number | null>(null);
+  const [hoverSecondsElapsed, setHoverSecondsElapsed] = useState<number | null>(null);
+  const [clockSecondsElapsed, setClockSecondsElapsed] = useState<number | null>(null);
+  const [clockPaused, setClockPaused] = useState(false);
+  const clockTimer = useRef<number | null>(null);
+  const clockInterval = useRef<number | null>(null);
   const [hintTarget, setHintTarget] = useState<{ row: number; col: number } | null>(null);
   // Undo/Redo history stacks: store snapshots of game state for undo/redo
   // const undoStack = useRef<any[]>([]);
@@ -277,6 +283,8 @@ export default function App() {
     setNotes({});
     setNotesMode(false);
     setHintMessage(null);
+    stopClock();
+    stopHoverTimer();
     // clear history on new game: reset undo/redo stacks and the action log
     // undoStack.current = [];
     // redoStack.current = [];
@@ -291,6 +299,8 @@ export default function App() {
     setAttemptCounts({});
     setNotes({});
     setHintMessage(null);
+    stopClock();
+    stopHoverTimer();
     // reset history after a manual reset and log the action
     // undoStack.current = [];
     // redoStack.current = [];
@@ -301,37 +311,104 @@ export default function App() {
     if (initialPuzzle[row][col] === 0) {
       setSelectedCell({ row, col });
       setHintMessage(null);
+      stopHoverTimer();
+    }
+  };
+
+  const stopHoverTimer = () => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    if (hoverInterval.current) {
+      clearInterval(hoverInterval.current);
+      hoverInterval.current = null;
+    }
+    setHintTarget(null);
+    setHintMessage(null);
+  };
+
+  const stopClock = () => {
+    if (clockTimer.current) {
+      clearTimeout(clockTimer.current);
+      clockTimer.current = null;
+    }
+    if (clockInterval.current) {
+      clearInterval(clockInterval.current);
+      clockInterval.current = null;
+    }
+    setClockPaused(false);
+    setClockSecondsElapsed(null);
+  };
+
+  const startClock = () => {
+    if (clockInterval.current) return;
+    if (clockTimer.current) {
+      clearTimeout(clockTimer.current);
+      clockTimer.current = null;
+    }
+    if (clockSecondsElapsed === null) {
+      setClockSecondsElapsed(0);
+    }
+    setClockPaused(false);
+    clockInterval.current = window.setInterval(() => {
+      setClockSecondsElapsed(seconds => {
+        if (seconds == null) return null;
+        return seconds + 1;
+      });
+    }, 1000);
+    clockTimer.current = window.setTimeout(() => {
+      // the timeout only exists so the clock can be stopped using the same cleanup path
+      clockTimer.current = null;
+    }, 5000);
+  };
+
+  const pauseClock = () => {
+    if (clockTimer.current) {
+      clearTimeout(clockTimer.current);
+      clockTimer.current = null;
+    }
+    if (clockInterval.current) {
+      clearInterval(clockInterval.current);
+      clockInterval.current = null;
+      setClockPaused(true);
+    }
+  };
+
+  const toggleClock = () => {
+    if (clockInterval.current) {
+      pauseClock();
+      return;
+    }
+    if (clockSecondsElapsed !== null) {
+      startClock();
     }
   };
 
   const handleCellHoverStart = (row: number, col: number) => {
     // Only show hints for editable cells
-      if (hoverTimer.current) {
-        clearTimeout(hoverTimer.current);
-        hoverTimer.current = null;
-      }
+    stopHoverTimer();
     if (initialPuzzle[row][col] !== 0) return;
-    // clear any existing hover timer
-    if (hoverTimer.current) {
-      window.clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
-    }
-    // wait 5 seconds of hover before suggesting (show-only)
+    setHoverSecondsElapsed(0);
+    hoverInterval.current = window.setInterval(() => {
+      setHoverSecondsElapsed(seconds => {
+        if (seconds == null) return null;
+        return seconds + 1;
+      });
+    }, 1000);
     hoverTimer.current = window.setTimeout(() => {
+      if (hoverInterval.current) {
+        clearInterval(hoverInterval.current);
+        hoverInterval.current = null;
+      }
+      setHoverSecondsElapsed(null);
       suggestNumber({ row, col });
       hoverTimer.current = null;
     }, 5000);
   };
 
   const handleCellHoverEnd = () => {
-    if (hoverTimer.current) {
-      clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
-    }
-    setHintTarget(null);
-    // hide any hover suggestion
-    setHintTarget(null);
-    setHintMessage(null);
+    stopHoverTimer();
   };
 
   
@@ -341,11 +418,7 @@ export default function App() {
 
     const { row, col } = selectedCell;
     if (initialPuzzle[row][col] !== 0) return;
-      if (hoverTimer.current) {
-        clearTimeout(hoverTimer.current);
-        hoverTimer.current = null;
-      }
-      setHintTarget(null);
+    stopHoverTimer();
 
     // Save state for undo/redo before mutating the board
     // pushHistory(`Input ${num} at R${row + 1}C${col + 1}`);
@@ -369,6 +442,9 @@ export default function App() {
       const newBoard = board.map(r => [...r]);
       newBoard[row][col] = num;
       setBoard(newBoard);
+      if (num !== 0 && clockSecondsElapsed === null) {
+        startClock();
+      }
 
       const newAttemptCounts = { ...attemptCounts };
       if (num !== 0) {
@@ -448,6 +524,8 @@ export default function App() {
     setIsComplete(true);
     setProximityMap({});
     setHintMessage(null);
+    stopClock();
+    stopHoverTimer();
     // clear history when puzzle is auto-solved
     // undoStack.current = [];
     // redoStack.current = [];
@@ -686,17 +764,13 @@ export default function App() {
         clearTimeout(hintTimer.current);
         hintTimer.current = null;
       }
-      if (hoverTimer.current) {
-        clearTimeout(hoverTimer.current);
-        hoverTimer.current = null;
-      }
-      setHintTarget(null);
-      setHintTarget(null);
+      stopHoverTimer();
     };
   // Re-evaluate when selected cell, board or puzzle changes
   }, [selectedCell, board, initialPuzzle]);
 
   const selectedValue = selectedCell ? board[selectedCell.row][selectedCell.col] : 0;
+  const totalAttempts = Object.values(attemptCounts).reduce((sum, count) => sum + count, 0);
 
   const getCellTone = (rowIndex: number, colIndex: number, isSelected: boolean, hasError: boolean, cellKey: string) => {
     const p = proximityMap[cellKey];
@@ -724,6 +798,11 @@ export default function App() {
             <div className="flex items-center gap-4">
               <div>
                 <h1 className="text-4xl text-stone-950 sm:text-5xl">Lion Sudoku 26</h1>
+                {clockSecondsElapsed !== null && (
+                  <div className="mt-2 inline-flex rounded-full border border-stone-300 bg-white/90 px-3 py-1 text-sm text-stone-700 shadow-sm">
+                    Cronómetro: {clockSecondsElapsed}s
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -842,6 +921,12 @@ export default function App() {
             >
               Reset
             </button>
+            <button
+              onClick={toggleClock}
+              className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
+            >
+              {clockPaused ? 'Resume' : 'Pause'}
+            </button>
           </div>
 
           {hintMessage && !hintTarget && (
@@ -864,6 +949,13 @@ export default function App() {
               Attempts in this cell: {attemptCounts[`${selectedCell.row}-${selectedCell.col}`]}
             </div>
           )}
+
+          {isComplete && (
+            <div className="mt-4 text-center text-sm text-stone-700">
+              Total attempts: {totalAttempts}
+            </div>
+          )}
+
         </section>
       </div>
     </div>
