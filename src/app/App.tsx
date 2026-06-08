@@ -212,6 +212,12 @@ export default function App() {
     startNewGame();
   }, []);
 
+  useEffect(() => {
+    if (isComplete) {
+      stopClock();
+    }
+  }, [isComplete]);
+
   // Recompute visual conflicts whenever the board changes
   useEffect(() => {
     const newConflicts = new Set<string>();
@@ -923,7 +929,8 @@ export default function App() {
             </button>
             <button
               onClick={toggleClock}
-              className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5"
+              disabled={isComplete || clockSecondsElapsed === null}
+              className="rounded px-3 py-1 border border-stone-300 bg-transparent text-sm text-stone-900 hover:bg-stone-100/5 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {clockPaused ? 'Resume' : 'Pause'}
             </button>
