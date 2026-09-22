@@ -803,7 +803,7 @@ export default function App() {
           <div className="mb-6 flex flex-col items-center gap-4 text-center">
             <div className="flex items-center gap-4">
               <div>
-                <h1 className="text-4xl text-stone-950 sm:text-5xl">Lion Sudoku 26</h1>
+                <h1 className="text-4xl text-stone-950 sm:text-5xl">Sudoku</h1>
                 {clockSecondsElapsed !== null && (
                   <div className="mt-2 inline-flex rounded-full border border-stone-300 bg-white/90 px-3 py-1 text-sm text-stone-700 shadow-sm">
                     Cronómetro: {clockSecondsElapsed}s
