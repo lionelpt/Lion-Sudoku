@@ -1,5 +1,30 @@
 # Sudoku - Instruções do Jogo
 
+## Desenvolvimento
+
+O projeto é uma única aplicação React/Vite. A mesma base poderá ser distribuída no navegador e, mais tarde, numa app iOS através do Capacitor.
+
+```text
+src/
+├── App.tsx       # Interface e estado temporário do jogo
+├── main.tsx      # Ponto de entrada React
+└── styles/       # Tema, fontes e estilos globais
+```
+
+Para correr localmente:
+
+```bash
+npm run dev
+```
+
+Para disponibilizar na rede local por IP e porta:
+
+```bash
+npm run dev:network
+```
+
+O Vite mostrará o endereço a abrir, como `http://192.168.x.x:5173`. Quando a app iOS for preparada, o Capacitor usará a pasta `dist/` produzida por `npm run build`.
+
 ## Objetivo
 
 Preencher todas as casas vazias com números de 1 a 9 sem repetir:

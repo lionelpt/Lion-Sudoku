@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { isValidMove } from './game';
 
 // Sudoku puzzle generator helper
 const generatePuzzle = (): { puzzle: number[][], solution: number[][] } => {
@@ -154,31 +155,6 @@ const generatePuzzle = (): { puzzle: number[][], solution: number[][] } => {
 };
 
 type Notes = { [key: string]: Set<number> };
-
-const isValidMove = (board: number[][], row: number, col: number, num: number): boolean => {
-  // Check row
-  for (let x = 0; x < 9; x++) {
-    if (x !== col && board[row][x] === num) return false;
-  }
-
-  // Check column
-  for (let x = 0; x < 9; x++) {
-    if (x !== row && board[x][col] === num) return false;
-  }
-
-  // Check 3x3 box
-  const startRow = Math.floor(row / 3) * 3;
-  const startCol = Math.floor(col / 3) * 3;
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 3; j++) {
-      const r = startRow + i;
-      const c = startCol + j;
-      if ((r !== row || c !== col) && board[r][c] === num) return false;
-    }
-  }
-
-  return true;
-};
 
 export default function App() {
   const [initialPuzzle, setInitialPuzzle] = useState<number[][]>([]);

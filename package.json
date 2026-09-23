@@ -1,11 +1,13 @@
 {
-  "name": "@figma/my-make-file",
+  "name": "sudoku",
   "private": true,
   "version": "0.0.1",
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "dev:network": "vite --host 0.0.0.0",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
